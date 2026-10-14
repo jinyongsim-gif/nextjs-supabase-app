@@ -1,0 +1,7 @@
+.next
+node_modules
+public
+package-lock.json
+types/database.types.ts
+shrimp_data
+.claude

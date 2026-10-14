@@ -8,8 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev     # 개발 서버 (localhost:3000)
 npm run build   # 프로덕션 빌드
 npm run start   # 프로덕션 서버 실행
-npm run lint    # ESLint (eslint .) — 커밋 전 반드시 실행 (전역 git 규칙)
+npm run lint    # ESLint (eslint .)
+npm run lint:fix
+npm run type-check   # tsc --noEmit
+npm run format       # Prettier 쓰기 (format:check는 검사만)
+npm run check        # lint + type-check + format:check — 커밋 전 실행
 ```
+
+`pre-commit`(Husky)에서 lint-staged가 변경 파일에 ESLint --fix + Prettier를 실행하고, `pre-push`에서 `type-check`를 실행한다. CI(`.github/workflows/ci.yml`)는 lint/type-check/format:check/build를 수행한다. `.claude/settings.json` 훅은 파일 편집 후 자동 포맷하며 `.env*`, `package-lock.json`, `types/database.types.ts`(Supabase 생성 파일) 직접 수정을 차단한다. 타입은 `types/database.types.ts`를 재생성해서 갱신할 것.
 
 테스트 러너는 설정되어 있지 않다.
 
