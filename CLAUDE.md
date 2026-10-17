@@ -1,50 +1,172 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+이 파일은 Claude Code가 이 저장소에서 작업할 때 참조하는 메인 컨텍스트 파일입니다.
 
-## 명령어
+## 1. 프로젝트 개요
+
+**Gather** - 초대 링크 하나로 생일 파티, 워크샵, 세미나 등 5~30명 규모의 일회성 이벤트를 관리하는 모바일 퍼스트 웹 플랫폼입니다.
+
+- **사용자**: 주최자(이벤트 생성/공유), 참여자(링크로 참여), 관리자(데스크톱 대시보드, `role: admin`)
+- **핵심 흐름**: 이벤트 생성 → 초대 링크 자동 생성 → 공유 → 참여자 로그인 후 자동 참여 → 실시간 참여자 확인
+- **현재 단계**: Phase 1 (MVP) 진행 중. 계획은 [docs/ROADMAP.md](docs/ROADMAP.md), 요구사항은 [docs/PRD.md](docs/PRD.md) 참조
+
+### 기술 스택
+
+| 영역 | 기술 |
+|------|------|
+| 프레임워크 | Next.js 15 (App Router), React 19, TypeScript (strict) |
+| 스타일링/UI | Tailwind CSS v4, shadcn/ui (new-york, Radix UI), Lucide React, next-themes |
+| 폼/검증 | React Hook Form, Zod |
+| 백엔드 | Supabase (Auth with Google OAuth, PostgreSQL, Storage, Realtime) |
+| 차트 | Recharts |
+| 알림 UI | Sonner |
+| 품질 도구 | ESLint, Prettier, Husky, lint-staged, Playwright (E2E) |
+
+### 개발 명령어
 
 ```bash
-npm run dev     # 개발 서버 (localhost:3000)
-npm run build   # 프로덕션 빌드
-npm run start   # 프로덕션 서버 실행
-npm run lint    # ESLint (eslint .)
-npm run lint:fix
-npm run type-check   # tsc --noEmit
-npm run format       # Prettier 쓰기 (format:check는 검사만)
-npm run check        # lint + type-check + format:check — 커밋 전 실행
+npm run dev          # 개발 서버 (Turbopack)
+npm run build        # 프로덕션 빌드
+npm run check-all    # typecheck + lint + format:check (권장)
+npm run lint:fix     # ESLint 자동 수정
+npm run format       # Prettier 포맷팅
+npm run test:e2e     # Playwright E2E 테스트
+npm run db:types     # Supabase 타입 생성 (database.types.ts)
+npx shadcn@latest add [component]  # shadcn/ui 컴포넌트 추가
 ```
 
-`pre-commit`(Husky)에서 lint-staged가 변경 파일에 ESLint --fix + Prettier를 실행하고, `pre-push`에서 `type-check`를 실행한다. CI(`.github/workflows/ci.yml`)는 lint/type-check/format:check/build를 수행한다. `.claude/settings.json` 훅은 파일 편집 후 자동 포맷하며 `.env*`, `package-lock.json`, `types/database.types.ts`(Supabase 생성 파일) 직접 수정을 차단한다. 타입은 `types/database.types.ts`를 재생성해서 갱신할 것.
+### 환경 변수 (`.env.local`)
 
-테스트 러너는 설정되어 있지 않다.
+```
+NEXT_PUBLIC_SUPABASE_URL=[Supabase 프로젝트 URL]
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[Supabase Publishable(Anon) Key]
+```
 
-환경 변수 (`.env.local`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (legacy anon 키도 같은 변수에 사용 가능).
+환경 변수가 없으면 미들웨어는 세션 검사를 건너뜁니다.
 
-## 아키텍처
+---
 
-Next.js (App Router, React 19) + Supabase Auth (`@supabase/ssr`, 쿠키 기반 세션) + Tailwind CSS v3 + shadcn/ui 스타터 기반 프로젝트. 소스는 `src/` 없이 루트의 `app/`, `components/`, `lib/`에 있다. 경로 별칭은 `@/*`.
+## 2. 폴더 구조
 
-### 인증 흐름 (여러 파일에 걸침)
+```
+.
+├── app/
+│   ├── (mobile)/              # 주최자/참여자 화면 (모바일 퍼스트)
+│   │   ├── page.tsx           # 홈 (내 이벤트)
+│   │   ├── events/            # 목록, new, [id], [id]/edit
+│   │   ├── invite/[code]/     # 초대 링크 안내
+│   │   ├── join/[code]/       # 초대 링크 참여
+│   │   └── profile/           # 프로필, edit
+│   ├── admin/                 # 관리자 (데스크톱)
+│   │   ├── login/
+│   │   └── (dashboard)/       # dashboard, events, users, stats
+│   ├── auth/                  # login, sign-up, callback, confirm, setup-profile 등
+│   ├── actions/               # Server Actions (admin, auth, events, profile, upload)
+│   └── protected/             # 스타터 킷 보호 페이지
+├── components/
+│   ├── ui/                    # shadcn/ui 컴포넌트
+│   ├── admin/                 # 관리자 컴포넌트 (stat-card, charts/)
+│   ├── events/                # 이벤트 폼, 카드, 공유/삭제 다이얼로그 등
+│   ├── participants/          # 참여자 카드
+│   ├── navigation/            # mobile-nav, admin-sidebar
+│   ├── skeletons/             # 로딩 스켈레톤
+│   └── tutorial/              # 스타터 킷 튜토리얼 (정리 대상)
+├── lib/
+│   ├── supabase/              # client.ts, server.ts, middleware.ts, database.types.ts
+│   ├── data/                  # 서버 측 데이터 조회 함수 (admin, events, participants, users)
+│   ├── queries/               # 쿼리 헬퍼 (admin, events, profile)
+│   ├── schemas/               # Zod 스키마 (event, profile)
+│   ├── types/                 # 도메인/API/폼/컴포넌트 타입
+│   ├── utils/                 # date, format, invite-code, toast, username 등
+│   └── auth/oauth.ts          # OAuth 헬퍼
+├── docs/                      # PRD.md, ROADMAP.md, 가이드, tasks/
+├── middleware.ts              # 인증 미들웨어 진입점
+├── playwright.config.ts       # E2E 설정
+└── .claude/                   # agents, commands, hooks
+```
 
-- `proxy.ts` (루트): Next.js의 `middleware` 대신 `proxy` 규약을 사용한다. `lib/supabase/proxy.ts`의 `updateSession`을 호출하며, 정적 파일/이미지를 제외한 모든 경로에 적용된다.
-- `lib/supabase/proxy.ts`: 요청마다 새 Supabase 클라이언트를 만들어 쿠키를 갱신하고 `supabase.auth.getClaims()`로 사용자를 확인한다. 비로그인 사용자는 `/`, `/login*`, `/auth*`를 제외하고 `/auth/login`으로 리다이렉트된다. `createServerClient`와 `getClaims()` 사이에 코드를 넣지 말 것, 그리고 반환하는 `supabaseResponse`를 그대로 반환해야 세션이 끊기지 않는다.
-- `lib/supabase/server.ts` (서버 컴포넌트/라우트 핸들러)와 `lib/supabase/client.ts` (브라우저)로 클라이언트가 분리되어 있다. 서버 클라이언트는 전역 변수에 두지 말고 함수 호출마다 `await createClient()`로 생성한다.
-- `app/auth/*`: 로그인/회원가입/비밀번호 재설정 페이지, `app/auth/confirm/route.ts`는 이메일 OTP 확인 처리.
-- `app/protected/`: 로그인 필수 영역 (자체 `layout.tsx`에 nav/footer 포함).
+경로 별칭: `@/*` → 프로젝트 루트 (예: `import { Button } from "@/components/ui/button"`)
 
-### UI
+---
 
-- `components/ui/`: shadcn/ui 프리미티브 (`components.json` 설정). 새 컴포넌트는 shadcn CLI로 추가한다.
-- `lib/utils.ts`: `cn()` 헬퍼와 `hasEnvVars` (env 미설정 시 proxy 검사를 건너뛰고 경고 UI 표시 — 튜토리얼용이라 제거 가능).
-- `components/tutorial/`, `deploy-button`, `hero` 등은 스타터 데모 코드로 실제 기능 개발 시 교체/삭제 대상.
+## 3. 주요 규칙 및 컨벤션
 
-## 참고 문서
+### 언어 및 커뮤니케이션
 
-`docs/guide/`에 한국어 가이드가 있다 (component-patterns, forms-react-hook-form, nextjs-15, project-structure, styling-guide). 단, `project-structure.md`는 `src/` 구조를 가정하고 있어 현재 레이아웃(루트 `app/`)과 다르다. 또한 `react-hook-form` 가이드가 있으나 해당 의존성은 아직 설치되어 있지 않다.
+- 응답, 코드 주석, 커밋 메시지, 문서는 **한국어**로 작성
+- 변수명/함수명은 **영어**
 
-## 규칙 (전역 설정에서)
+### 코드 스타일
 
-- 응답, 코드 주석, 커밋 메시지, 문서는 한국어. 변수/함수명은 영어.
-- 들여쓰기 스페이스 2칸, 변수 camelCase, 함수명은 동사로 시작.
-- 브랜치명 `feature/기능명`.
+- 들여쓰기 스페이스 2칸
+- 변수명 camelCase, 함수명은 동사로 시작 (`getUserData`, `handleClick`)
+- 컴포넌트 파일명은 kebab-case, 컴포넌트명은 PascalCase
+- TypeScript strict 모드 준수, `any` 사용 지양
+
+### Supabase 클라이언트 사용
+
+| 환경 | 파일 | 비고 |
+|------|------|------|
+| Server Components / Route Handlers / Server Actions | `lib/supabase/server.ts`의 `createClient()` | 호출마다 새로 생성 (전역 변수 금지) |
+| Client Components | `lib/supabase/client.ts`의 `createClient()` | `createBrowserClient` 사용 |
+| Middleware | `lib/supabase/middleware.ts`의 `updateSession()` | |
+
+**주의**
+- `createServerClient`와 `supabase.auth.getClaims()` 사이에 코드를 추가하지 않습니다.
+- 미들웨어에서 새 Response 객체를 만들면 쿠키를 반드시 복사합니다.
+- 데이터 변경은 `app/actions/*`의 Server Actions, 조회는 `lib/data/*`에서 처리합니다.
+
+### 인증 및 권한
+
+- 미들웨어가 요청을 가로채 인증 상태를 확인하고, 미인증 사용자는 `/auth/login`으로 리다이렉트합니다.
+- `/auth/*`는 공개 경로입니다.
+- 관리자 영역(`/admin/*`)은 `role: admin` 사용자만 접근할 수 있으며, 권한 검증은 서버에서 수행합니다.
+- 이벤트 수정/삭제는 주최자(`created_by`)만 가능합니다. UI 숨김에 의존하지 말고 서버와 RLS에서 확인합니다.
+
+### 컴포넌트 및 UI
+
+- 기본은 Server Component, 상호작용이 필요한 경우에만 `'use client'`를 사용합니다.
+- UI는 `components/ui/`의 shadcn/ui를 우선 사용하고, 새 컴포넌트는 `npx shadcn@latest add`로 추가합니다.
+- 모바일 화면은 터치 영역 48px 이상을 지키고, 다크 모드와 반응형을 함께 고려합니다.
+- 폼은 React Hook Form + Zod(`lib/schemas`)를 사용합니다.
+- 사용자 알림은 `lib/utils/toast.ts`(Sonner)를 사용합니다.
+
+### Git 규칙
+
+- 브랜치명: `feature/기능명`
+- 커밋 메시지: 한국어, 이모지 + 컨벤셔널 형식 (예: `✨ feat: 구글 소셜 로그인 추가`)
+- **커밋 전에 반드시 린트 실행** (`npm run lint`). Husky pre-commit이 스테이지된 파일에 ESLint + Prettier를 자동 실행합니다.
+
+### 작업 완료 체크리스트
+
+```bash
+npm run check-all   # 타입체크 + 린트 + 포맷 검사 통과
+npm run build       # 빌드 성공
+```
+
+API/비즈니스 로직 변경은 Playwright E2E로 검증하고, 완료한 작업은 [docs/ROADMAP.md](docs/ROADMAP.md)에 체크합니다.
+
+### 보안
+
+- 계정 정보, API 키 등 비밀 값은 이 파일을 포함해 저장소 문서에 기록하지 않습니다 (`.env.local` 사용).
+- 테스트 계정은 팀 내 별도 채널로 공유합니다.
+
+---
+
+## 4. 상세 규칙 (자동 import)
+
+아래 문서는 `@` import로 항상 컨텍스트에 포함됩니다.
+
+@docs/next-js.md
+@docs/supabase.md
+@docs/coding-style.md
+
+## 5. 참고 문서
+
+- [docs/PRD.md](docs/PRD.md): 제품 요구사항 (기능 목록, 기술 스택, 사용자 스토리)
+- [docs/ROADMAP.md](docs/ROADMAP.md): 개발 로드맵 및 체크리스트
+- [docs/AUTH_TESTING_GUIDE.md](docs/AUTH_TESTING_GUIDE.md): 인증 테스트 가이드
+
+## 6. MCP 서버
+
+`.mcp.json`에 설정: supabase(DB 연동), playwright(브라우저 자동화/E2E), context7(라이브러리 문서), shadcn(컴포넌트 관리), shrimp-task-manager(작업 관리)
