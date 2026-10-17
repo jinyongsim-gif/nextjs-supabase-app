@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SocialLoginSection } from "@/components/social-login-section";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -103,6 +104,7 @@ export function LoginForm({
               </Link>
             </div>
           </form>
+          <SocialLoginSection />
         </CardContent>
       </Card>
     </div>
